@@ -1,0 +1,11 @@
+country,iso_alpha,criticality_score,main_elements
+China,CHN,0.8,"Li, Co, Ni, Mn"
+Australia,AUS,0.2,"Li, Al"
+Chile,CHL,0.4,"Li, Cu"
+Argentina,ARG,0.3,Li
+Congo,COD,0.9,"Co, Cu"
+Russia,RUS,0.7,"Ni, Pd, Pt"
+Canada,CAN,0.1,"Ni, Co"
+USA,USA,0.2,"Al, Cu"
+Indonesia,IDN,0.5,"Ni, Co"
+Peru,PER,0.3,"Cu, Zn"

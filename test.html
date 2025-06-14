@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MACCAI Test</title>
+</head>
+<body>
+    <h1>CSV Loading Test</h1>
+    <div id="output"></div>
+    <button onclick="testLoad()">Test Load</button>
+    
+    <script>
+        async function testLoad() {
+            const output = document.getElementById('output');
+            try {
+                // Test materials data
+                const response = await fetch('materials_sample.csv');
+                const text = await response.text();
+                const lines = text.trim().split('\n');
+                output.innerHTML = `
+                    <h3>Materials CSV Test:</h3>
+                    <p>Lines loaded: ${lines.length}</p>
+                    <p>Headers: ${lines[0]}</p>
+                    <p>First data row: ${lines[1]}</p>
+                `;
+                
+                // Test parsing first element
+                const firstRow = lines[1].split(',');
+                const elementsStr = firstRow[1];
+                output.innerHTML += `<p>Elements string: ${elementsStr}</p>`;
+                
+                try {
+                    const elements = JSON.parse(elementsStr.replace(/'/g, '"'));
+                    output.innerHTML += `<p>Parsed elements: ${elements.join(', ')}</p>`;
+                } catch (e) {
+                    output.innerHTML += `<p>Parsing error: ${e.message}</p>`;
+                }
+                
+            } catch (error) {
+                output.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

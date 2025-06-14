@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MACCAI - Materials Discovery Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://unpkg.com/topojson@3"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 56px;
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .help-link {
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .help-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Layout */
+        .container {
+            display: flex;
+            margin-top: 56px;
+            height: calc(100vh - 56px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+        }
+
+        .control-group {
+            margin-bottom: 24px;
+        }
+
+        .control-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        select[multiple] {
+            height: 80px;
+        }
+
+        .slider-container {
+            margin: 10px 0;
+        }
+
+        .range-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e5e7eb;
+            outline: none;
+        }        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+        }
+
+        .range-values {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .run-filter-btn {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 20px;
+        }
+
+        .run-filter-btn:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .run-filter-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* KPI Cards */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #3b82f6;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 4px;
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        /* Results table */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: #f8f9fa;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e5e7eb;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .results-table th:hover {
+            background: #f3f4f6;
+        }
+
+        .results-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .results-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .results-table tr.selected {
+            background: #dbeafe;
+        }
+
+        /* Color coding */
+        .good { color: #059669; font-weight: 600; }
+        .warning { color: #d97706; font-weight: 600; }
+        .poor { color: #dc2626; font-weight: 600; }
+        .metallic { color: #dc2626; font-style: italic; }
+
+        /* Map */        .map-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            height: 400px;
+            position: relative;
+        }
+
+        .map-header {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 16px;
+        }        #world-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        #world-map .map-background {
+            width: 100%;
+            height: 100%;
+        }
+
+        .country-indicator {
+            stroke: #fff;
+            stroke-width: 2px;
+            cursor: pointer;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .country-indicator:hover {
+            stroke: #333;
+            stroke-width: 3px;
+            filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.5));
+        }        .country-label {
+            font-size: 14px;
+            font-weight: bold;
+            fill: #333;
+            stroke: #fff;
+            stroke-width: 1px;
+            paint-order: stroke;
+            pointer-events: none;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        /* Loading state */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hidden elements */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">MACCAI</div>
+        <a href="#" class="help-link" onclick="showHelp()">Help (?)</a>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="control-group">
+                <label class="control-label">Include Elements</label>
+                <select id="include-elements" class="control-input" multiple>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Exclude Elements</label>
+                <select id="exclude-elements" class="control-input" multiple>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Max ΔE<sub>hull</sub> (eV)</label>
+                <div class="slider-container">
+                    <input type="range" id="max-delta-hull" class="range-slider" min="0" max="0.2" step="0.001" value="0.05">
+                    <div class="range-values">
+                        <span>0</span>
+                        <span id="delta-hull-value">0.05</span>
+                        <span>0.20</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Band-gap Window (eV)</label>
+                <div class="slider-container">
+                    <input type="range" id="bandgap-min" class="range-slider" min="0" max="5" step="0.1" value="0">
+                    <div class="range-values">
+                        <span>Min: <span id="bandgap-min-value">0</span></span>
+                    </div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="bandgap-max" class="range-slider" min="0" max="5" step="0.1" value="5">
+                    <div class="range-values">
+                        <span>Max: <span id="bandgap-max-value">5</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Dimensionality</label>
+                <select id="dimensionality" class="control-input">
+                    <option value="any">Any</option>
+                    <option value="3D">3D</option>
+                    <option value="intercalated ion">Intercalated-ion</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Density Cap (g/cm³)</label>
+                <input type="number" id="density-cap" class="control-input" placeholder="Optional" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Country Filter</label>
+                <select id="country-filter" class="control-input">
+                    <option value="any">Any</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+
+            <button id="run-filter" class="run-filter-btn" disabled>Run Filter</button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Loading State -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading data...</p>
+            </div>
+
+            <!-- KPI Cards -->
+            <div id="kpi-container" class="kpi-container hidden">
+                <div class="kpi-card">
+                    <div id="median-delta-hull" class="kpi-value">-</div>
+                    <div class="kpi-label">Median ΔE<sub>hull</sub> (eV)</div>
+                </div>
+                <div class="kpi-card">
+                    <div id="avg-bandgap" class="kpi-value">-</div>
+                    <div class="kpi-label">Average Band-gap (eV)</div>
+                </div>
+                <div class="kpi-card">
+                    <div id="distinct-elements" class="kpi-value">-</div>
+                    <div class="kpi-label">Distinct Elements</div>
+                </div>
+                <div class="kpi-card">
+                    <div id="hit-count" class="kpi-value">-</div>
+                    <div class="kpi-label">Hit Count</div>
+                </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="table-container">
+                <div class="table-header">Materials Results</div>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Formula ↕</th>
+                            <th onclick="sortTable(1)">ΔE<sub>hull</sub> (eV) ↕</th>
+                            <th onclick="sortTable(2)">Band-gap (eV) ↕</th>
+                            <th onclick="sortTable(3)">Density (g/cm³) ↕</th>
+                            <th onclick="sortTable(4)">Dimensionality ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #6b7280; padding: 40px;">
+                                Click "Run Filter" to see results
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- World Map -->
+            <div class="map-container">
+                <div class="map-header">Supply Risk Map</div>
+                <svg id="world-map"></svg>
+            </div>
+        </main>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeHelp()">&times;</span>
+            <h2>About This Dashboard</h2>
+            <p><strong>Demo Data Only:</strong> This dashboard uses sample crystallographic data for demonstration purposes. The materials shown are not necessarily optimal for battery applications.</p>
+            <br>
+            <p><strong>How to use:</strong></p>
+            <ul>
+                <li>Adjust filters in the left sidebar</li>
+                <li>Click "Run Filter" to apply constraints</li>
+                <li>View results in the table and KPI cards</li>
+                <li>Click countries on the map to filter by region</li>
+                <li>Click table rows to select/copy data</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        // Global variables
+        let materialsData = [];
+        let supplyRiskData = [];
+        let filteredData = [];
+        let sortDirection = {};
+        let allElements = new Set();        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing dashboard...');
+            loadData();
+            setupEventListeners();
+            
+            // Add a test button for debugging (will be hidden in production)
+            const testBtn = document.createElement('button');
+            testBtn.textContent = 'Test Filter';
+            testBtn.style.position = 'fixed';
+            testBtn.style.bottom = '10px';
+            testBtn.style.right = '10px';
+            testBtn.style.zIndex = '9999';
+            testBtn.onclick = testFilter;
+            document.body.appendChild(testBtn);
+        });
+        
+        // Test function for debugging
+        function testFilter() {
+            console.log('Testing filter with sample data...');
+            console.log('Materials data length:', materialsData.length);
+            console.log('Supply risk data length:', supplyRiskData.length);
+            console.log('All elements:', Array.from(allElements).slice(0, 10));
+            
+            // Run a simple filter test
+            if (materialsData.length > 0) {
+                document.getElementById('max-delta-hull').value = 0.1;
+                document.getElementById('delta-hull-value').textContent = '0.1';
+                onControlChange();
+                runFilter();
+                console.log('Test filter completed');
+            }
+        }// Load CSV data
+        async function loadData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                
+                // Load materials data
+                const materialsResponse = await fetch('materials_sample.csv');
+                if (!materialsResponse.ok) {
+                    throw new Error(`Failed to load materials data: ${materialsResponse.status}`);
+                }
+                const materialsText = await materialsResponse.text();
+                materialsData = parseCSV(materialsText);
+                console.log(`Loaded ${materialsData.length} materials`);
+                
+                // Load supply risk data
+                const supplyResponse = await fetch('supply_risk_data.csv');
+                if (!supplyResponse.ok) {
+                    throw new Error(`Failed to load supply risk data: ${supplyResponse.status}`);
+                }
+                const supplyText = await supplyResponse.text();
+                supplyRiskData = parseCSV(supplyText);
+                console.log(`Loaded ${supplyRiskData.length} countries`);
+                
+                // Process data
+                processData();
+                populateControls();
+                initializeMap();
+                
+                document.getElementById('loading').style.display = 'none';
+                console.log('Dashboard loaded successfully');
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').innerHTML = `<p style="color: red;">Error loading data: ${error.message}<br/>Please ensure CSV files are in the same directory and the page is served via HTTP.</p>`;
+            }
+        }        // Parse CSV data
+        function parseCSV(text) {
+            const lines = text.trim().split('\n').filter(line => line.trim()); // Remove empty lines
+            if (lines.length === 0) return [];
+            
+            const headers = parseCSVLine(lines[0]);
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header.trim()] = values[index] ? values[index].trim() : '';
+                });
+                data.push(row);
+            }
+            return data;
+        }
+
+        // Parse CSV line handling quoted values
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }        // Process materials data
+        function processData() {
+            console.log('Processing materials data...');
+            materialsData.forEach((material, index) => {
+                // Parse elements
+                if (material.elements) {
+                    try {
+                        // Handle both quoted and unquoted element arrays
+                        let elementsStr = material.elements.trim();
+                        if (elementsStr.startsWith('[') && elementsStr.endsWith(']')) {
+                            material.elements = JSON.parse(elementsStr.replace(/'/g, '"'));
+                        } else {
+                            // Fallback for simple comma-separated values
+                            material.elements = elementsStr.split(',').map(el => el.trim().replace(/['"]/g, ''));
+                        }
+                        material.elements.forEach(el => allElements.add(el));
+                    } catch (e) {
+                        console.warn(`Failed to parse elements for material ${index}:`, material.elements);
+                        material.elements = [];
+                    }
+                } else {
+                    material.elements = [];
+                }
+                
+                // Convert numeric fields
+                material.delta_hull = parseFloat(material.delta_hull) || 0;
+                material.band_gap = material.band_gap === 'inf' ? Infinity : 
+                                  (material.band_gap === '' ? null : parseFloat(material.band_gap));
+                material.density = parseFloat(material.density) || 0;
+            });
+            console.log(`Found ${allElements.size} unique elements`);
+        }
+
+        // Populate control dropdowns
+        function populateControls() {
+            const includeSelect = document.getElementById('include-elements');
+            const excludeSelect = document.getElementById('exclude-elements');
+            const countrySelect = document.getElementById('country-filter');
+            
+            // Populate element options
+            const sortedElements = Array.from(allElements).sort();
+            sortedElements.forEach(element => {
+                const option1 = new Option(element, element);
+                const option2 = new Option(element, element);
+                includeSelect.add(option1);
+                excludeSelect.add(option2);
+            });
+            
+            // Populate country options
+            supplyRiskData.forEach(country => {
+                const option = new Option(country.country, country.country);
+                countrySelect.add(option);
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Control change listeners
+            document.querySelectorAll('.control-input, .range-slider').forEach(control => {
+                control.addEventListener('change', onControlChange);
+                control.addEventListener('input', onControlChange);
+            });
+            
+            // Run filter button
+            document.getElementById('run-filter').addEventListener('click', runFilter);
+            
+            // Slider value updates
+            document.getElementById('max-delta-hull').addEventListener('input', function() {
+                document.getElementById('delta-hull-value').textContent = this.value;
+            });
+            
+            document.getElementById('bandgap-min').addEventListener('input', function() {
+                document.getElementById('bandgap-min-value').textContent = this.value;
+            });
+            
+            document.getElementById('bandgap-max').addEventListener('input', function() {
+                document.getElementById('bandgap-max-value').textContent = this.value;
+            });
+        }
+
+        // Handle control changes
+        function onControlChange() {
+            document.getElementById('run-filter').disabled = false;
+        }
+
+        // Run filter function
+        function runFilter() {
+            const filters = getFilterValues();
+            filteredData = applyFilters(materialsData, filters);
+            
+            updateKPIs(filteredData);
+            updateResultsTable(filteredData);
+            
+            // Show KPI container if we have results
+            const kpiContainer = document.getElementById('kpi-container');
+            if (filteredData.length > 0) {
+                kpiContainer.classList.remove('hidden');
+            } else {
+                kpiContainer.classList.add('hidden');
+            }
+            
+            document.getElementById('run-filter').disabled = true;
+        }
+
+        // Get current filter values
+        function getFilterValues() {
+            return {
+                includeElements: Array.from(document.getElementById('include-elements').selectedOptions).map(o => o.value),
+                excludeElements: Array.from(document.getElementById('exclude-elements').selectedOptions).map(o => o.value),
+                maxDeltaHull: parseFloat(document.getElementById('max-delta-hull').value),
+                bandgapMin: parseFloat(document.getElementById('bandgap-min').value),
+                bandgapMax: parseFloat(document.getElementById('bandgap-max').value),
+                dimensionality: document.getElementById('dimensionality').value,
+                densityCap: parseFloat(document.getElementById('density-cap').value) || null,
+                country: document.getElementById('country-filter').value
+            };
+        }
+
+        // Apply filters to data
+        function applyFilters(data, filters) {
+            return data.filter(material => {
+                // Include elements filter
+                if (filters.includeElements.length > 0) {
+                    if (!filters.includeElements.every(el => material.elements.includes(el))) {
+                        return false;
+                    }
+                }
+                
+                // Exclude elements filter
+                if (filters.excludeElements.length > 0) {
+                    if (filters.excludeElements.some(el => material.elements.includes(el))) {
+                        return false;
+                    }
+                }
+                
+                // Delta hull filter
+                if (material.delta_hull > filters.maxDeltaHull) {
+                    return false;
+                }
+                
+                // Band gap filter
+                if (material.band_gap !== null && material.band_gap !== Infinity) {
+                    if (material.band_gap < filters.bandgapMin || material.band_gap > filters.bandgapMax) {
+                        return false;
+                    }
+                }
+                
+                // Dimensionality filter
+                if (filters.dimensionality !== 'any' && material.dimensionality !== filters.dimensionality) {
+                    return false;
+                }
+                
+                // Density filter
+                if (filters.densityCap && material.density > filters.densityCap) {
+                    return false;
+                }
+                
+                // Country filter (simplified - just filtering by selected country)
+                if (filters.country !== 'any') {
+                    // This is a simplified implementation - in reality you'd match elements to countries
+                    return true; // For demo purposes, show all materials
+                }
+                
+                return true;
+            });
+        }
+
+        // Update KPI cards
+        function updateKPIs(data) {
+            if (data.length === 0) {
+                document.getElementById('median-delta-hull').textContent = '-';
+                document.getElementById('avg-bandgap').textContent = '-';
+                document.getElementById('distinct-elements').textContent = '-';
+                document.getElementById('hit-count').textContent = '0';
+                return;
+            }
+            
+            // Median delta hull
+            const deltaHulls = data.map(d => d.delta_hull).sort((a, b) => a - b);
+            const median = deltaHulls[Math.floor(deltaHulls.length / 2)];
+            document.getElementById('median-delta-hull').textContent = median.toFixed(4);
+            
+            // Average band gap (excluding infinite and null values)
+            const validBandgaps = data.filter(d => d.band_gap !== null && d.band_gap !== Infinity).map(d => d.band_gap);
+            const avgBandgap = validBandgaps.length > 0 ? validBandgaps.reduce((a, b) => a + b, 0) / validBandgaps.length : 0;
+            document.getElementById('avg-bandgap').textContent = avgBandgap.toFixed(2);
+            
+            // Distinct elements
+            const allElementsInResults = new Set();
+            data.forEach(d => d.elements.forEach(el => allElementsInResults.add(el)));
+            document.getElementById('distinct-elements').textContent = allElementsInResults.size;
+            
+            // Hit count
+            document.getElementById('hit-count').textContent = data.length;
+        }
+
+        // Update results table
+        function updateResultsTable(data) {
+            const tbody = document.getElementById('results-tbody');
+            tbody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #6b7280; padding: 40px;">No materials match the current filters</td></tr>';
+                return;
+            }
+            
+            data.forEach((material, index) => {
+                const row = document.createElement('tr');
+                row.onclick = () => selectRow(row, material);
+                
+                // Formula
+                const formulaCell = document.createElement('td');
+                formulaCell.textContent = material.formula;
+                row.appendChild(formulaCell);
+                
+                // Delta hull with color coding
+                const deltaHullCell = document.createElement('td');
+                deltaHullCell.textContent = material.delta_hull.toFixed(4);
+                if (material.delta_hull <= 0.05) {
+                    deltaHullCell.className = 'good';
+                } else if (material.delta_hull <= 0.10) {
+                    deltaHullCell.className = 'warning';
+                } else {
+                    deltaHullCell.className = 'poor';
+                }
+                row.appendChild(deltaHullCell);
+                
+                // Band gap
+                const bandgapCell = document.createElement('td');
+                if (material.band_gap === null || material.band_gap === undefined) {
+                    bandgapCell.textContent = 'N/A';
+                } else if (material.band_gap === Infinity) {
+                    bandgapCell.textContent = 'Insulator';
+                } else if (material.band_gap === 0) {
+                    bandgapCell.textContent = 'Metallic';
+                    bandgapCell.className = 'metallic';
+                } else {
+                    bandgapCell.textContent = material.band_gap.toFixed(4);
+                }
+                row.appendChild(bandgapCell);
+                
+                // Density
+                const densityCell = document.createElement('td');
+                densityCell.textContent = material.density.toFixed(2);
+                row.appendChild(densityCell);
+                
+                // Dimensionality
+                const dimCell = document.createElement('td');
+                dimCell.textContent = material.dimensionality || 'N/A';
+                row.appendChild(dimCell);
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Select table row
+        function selectRow(row, material) {
+            // Toggle selection
+            document.querySelectorAll('.results-table tr.selected').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
+            
+            // Copy to clipboard
+            const data = `${material.formula}\t${material.delta_hull}\t${material.band_gap || 'N/A'}\t${material.density}\t${material.dimensionality || 'N/A'}`;
+            navigator.clipboard.writeText(data).catch(() => {
+                console.log('Could not copy to clipboard');
+            });
+        }
+
+        // Sort table
+        function sortTable(columnIndex) {
+            const table = document.querySelector('.results-table tbody');
+            const rows = Array.from(table.rows);
+            
+            if (rows.length <= 1) return;
+            
+            const direction = sortDirection[columnIndex] = !sortDirection[columnIndex];
+            
+            rows.sort((a, b) => {
+                let aVal = a.cells[columnIndex].textContent;
+                let bVal = b.cells[columnIndex].textContent;
+                
+                // Try to parse as numbers
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return direction ? aNum - bNum : bNum - aNum;
+                } else {
+                    return direction ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                }
+            });
+            
+            // Clear and re-append sorted rows
+            table.innerHTML = '';
+            rows.forEach(row => table.appendChild(row));
+        }        // Initialize world map
+        function initializeMap() {
+            // Use a standard aspect ratio that matches typical world maps
+            const viewBoxWidth = 1000;
+            const viewBoxHeight = 500;
+            
+            const svg = d3.select("#world-map")
+                .attr("viewBox", `0 0 ${viewBoxWidth} ${viewBoxHeight}`)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                .style("width", "100%")
+                .style("height", "100%");
+            
+            // Add the world map background as an image element
+            svg.append("image")
+                .attr("class", "map-background")
+                .attr("href", "World_map_green.png")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", viewBoxWidth)
+                .attr("height", viewBoxHeight)
+                .attr("preserveAspectRatio", "xMidYMid slice");
+            
+            // Color scale for criticality scores
+            const colorScale = d3.scaleLinear()
+                .domain([0, 1])
+                .range(["#10b981", "#dc2626"]);
+            
+            // Create country indicators overlaid on the world map
+            createWorldMapOverlay(svg, colorScale, viewBoxWidth, viewBoxHeight);
+        }        // Create world map overlay with country indicators
+        function createWorldMapOverlay(svg, colorScale, width, height) {            // Country positions as percentages of the viewBox (more accurate positioning)
+            // These coordinates are based on a 1000x500 viewBox to match typical world map proportions
+            const countries = [
+                {name: "China", x: 750, y: 180, radius: 25, criticality: 0.8},
+                {name: "Australia", x: 840, y: 380, radius: 20, criticality: 0.2},
+                {name: "Chile", x: 220, y: 380, radius: 15, criticality: 0.4},
+                {name: "Argentina", x: 230, y: 430, radius: 18, criticality: 0.3},
+                {name: "Congo", x: 480, y: 270, radius: 16, criticality: 0.9},
+                {name: "Russia", x: 700, y: 100, radius: 30, criticality: 0.7},
+                {name: "Canada", x: 200, y: 90, radius: 28, criticality: 0.1},
+                {name: "USA", x: 160, y: 170, radius: 25, criticality: 0.2},
+                {name: "Indonesia", x: 780, y: 280, radius: 18, criticality: 0.5},
+                {name: "Peru", x: 180, y: 320, radius: 14, criticality: 0.3}
+            ];
+            
+            const tooltip = d3.select("#tooltip");
+            
+            // Create country indicators as circles
+            svg.selectAll(".country-indicator")
+                .data(countries)
+                .enter()
+                .append("circle")
+                .attr("class", "country-indicator")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", d => d.radius)
+                .attr("fill", d => colorScale(d.criticality))
+                .attr("opacity", 0.8)
+                .on("mouseover", function(event, d) {
+                    const supplyData = supplyRiskData.find(s => s.country === d.name);
+                    tooltip.style("opacity", 1)
+                        .html(`<strong>${d.name}</strong><br/>
+                               Criticality: ${d.criticality.toFixed(1)}<br/>
+                               Elements: ${supplyData ? supplyData.main_elements : 'Various'}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px");
+                    
+                    // Highlight the country indicator
+                    d3.select(this)
+                        .attr("opacity", 1)
+                        .attr("r", d.radius * 1.2);
+                })
+                .on("mouseout", function(event, d) {
+                    tooltip.style("opacity", 0);
+                    
+                    // Reset the country indicator
+                    d3.select(this)
+                        .attr("opacity", 0.8)
+                        .attr("r", d.radius);
+                })
+                .on("click", function(event, d) {
+                    // Set country filter and run query
+                    document.getElementById('country-filter').value = d.name;
+                    onControlChange();
+                    runFilter();
+                    
+                    // Visual feedback for selection
+                    svg.selectAll(".country-indicator").attr("stroke-width", 2);
+                    d3.select(this).attr("stroke-width", 4);
+                });
+            
+            // Add country labels
+            svg.selectAll(".country-label")
+                .data(countries)
+                .enter()
+                .append("text")
+                .attr("class", "country-label")
+                .attr("x", d => d.x)
+                .attr("y", d => d.y + d.radius + 20)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "14px")
+                .text(d => d.name);
+            
+            // Add a legend for the color scale (positioned to avoid collisions)
+            addMapLegend(svg, colorScale, width, height);
+        }        // Add a legend for the supply risk map
+        function addMapLegend(svg, colorScale, width, height) {
+            const legendWidth = 250;
+            const legendHeight = 25;
+            // Position legend in center bottom of the map
+            const legendX = (width - legendWidth) / 2;
+            const legendY = height - 80;
+            
+            // Create gradient for legend
+            const defs = svg.select("defs").empty() ? svg.append("defs") : svg.select("defs");
+            const gradient = defs.append("linearGradient")
+                .attr("id", "legend-gradient")
+                .attr("x1", "0%")
+                .attr("x2", "100%")
+                .attr("y1", "0%")
+                .attr("y2", "0%");
+            
+            gradient.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", "#10b981");
+            
+            gradient.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", "#dc2626");
+            
+            // Legend background
+            svg.append("rect")
+                .attr("x", legendX - 15)
+                .attr("y", legendY - 25)
+                .attr("width", legendWidth + 30)
+                .attr("height", 70)
+                .attr("fill", "rgba(255, 255, 255, 0.95)")
+                .attr("stroke", "#ccc")
+                .attr("stroke-width", 1)
+                .attr("rx", 8);
+            
+            // Legend gradient bar
+            svg.append("rect")
+                .attr("x", legendX)
+                .attr("y", legendY)
+                .attr("width", legendWidth)
+                .attr("height", legendHeight)
+                .attr("fill", "url(#legend-gradient)")
+                .attr("stroke", "#999")
+                .attr("stroke-width", 1);
+            
+            // Legend labels
+            svg.append("text")
+                .attr("x", legendX)
+                .attr("y", legendY - 8)
+                .attr("font-size", "14px")
+                .attr("font-weight", "bold")
+                .attr("fill", "#333")
+                .text("Low Risk");
+            
+            svg.append("text")
+                .attr("x", legendX + legendWidth)
+                .attr("y", legendY - 8)
+                .attr("text-anchor", "end")
+                .attr("font-size", "14px")
+                .attr("font-weight", "bold")
+                .attr("fill", "#333")
+                .text("High Risk");
+            
+            svg.append("text")
+                .attr("x", legendX + legendWidth / 2)
+                .attr("y", legendY + legendHeight + 20)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "13px")
+                .attr("fill", "#666")
+                .attr("font-weight", "500")
+                .text("Supply Risk Index");
+        }
+
+        // Help modal functions
+        function showHelp() {
+            document.getElementById('help-modal').style.display = 'block';
+        }
+
+        function closeHelp() {
+            document.getElementById('help-modal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('help-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
