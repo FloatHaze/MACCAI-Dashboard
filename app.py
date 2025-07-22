@@ -5,7 +5,7 @@ import pandas as pd
 import traceback
 
 # --- Configuration ---
-MP_API_KEY = "0HI71UtEWhxPYQjT2Len22DEvoEAcGLB"  # Replace with your API key
+MP_API_KEY = "0HI71UtEWhxPYQjT2Len22DEvoEAcGLB"  # Your API key
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:8000"}})
@@ -13,7 +13,10 @@ CORS(app, resources={r"/api/*": {"origins": "http://localhost:8000"}})
 # Load supply risk data on startup
 try:
     supply_risk_df = pd.read_csv('supply_risk_data.csv')
-    supply_risk_df['main_elements'] = supply_risk_df['main_elements'].str.split(',')
+    # Clean up the elements list by splitting the string and stripping whitespace from each element
+    supply_risk_df['main_elements'] = supply_risk_df['main_elements'].apply(
+        lambda x: [elem.strip() for elem in x.split(',')] if isinstance(x, str) else []
+    )
     print("Supply risk data loaded successfully.")
 except FileNotFoundError:
     print("Warning: supply_risk_data.csv not found. Country filter will not work.")
@@ -38,16 +41,6 @@ def get_materials():
             criteria["is_stable"] = is_stable_filter
 
         include_elements = filters.get("includeElements", [])
-
-        selected_country = filters.get("country")
-        if selected_country and selected_country != "any" and not supply_risk_df.empty:
-            country_data = supply_risk_df[supply_risk_df['country'] == selected_country]
-            if not country_data.empty:
-                country_elements = country_data.iloc[0]['main_elements']
-                for el in country_elements:
-                    if el and el not in include_elements:
-                        include_elements.append(el)
-
         if include_elements:
             criteria["elements"] = include_elements
 
@@ -60,8 +53,10 @@ def get_materials():
         with MPRester(MP_API_KEY) as mpr:
             docs = mpr.materials.summary.search(**criteria, fields=fields)
 
+        # FIX: Changed .model_dump() to .dict() for compatibility with Pydantic V1
         results_pydantic = [doc.dict() for doc in docs]
 
+        # Filter locally for country
         selected_country = filters.get("country")
         final_results = []
 
@@ -78,18 +73,14 @@ def get_materials():
         else:
             final_results = results_pydantic
 
+        # JSON Serialization
         results_serializable = []
         for doc_dict in final_results:
             if 'elements' in doc_dict and doc_dict['elements'] is not None:
                 doc_dict['elements'] = [str(el) for el in doc_dict['elements']]
-
-            # --- FIX: Check type before trying to access .name attribute ---
             if 'symmetry' in doc_dict and doc_dict['symmetry'] is not None and 'crystal_system' in doc_dict['symmetry']:
-                crystal_system_value = doc_dict['symmetry']['crystal_system']
-                # If the value is not already a string, then convert it from an Enum object
-                if not isinstance(crystal_system_value, str):
-                    doc_dict['symmetry']['crystal_system'] = crystal_system_value.name
-
+                # The .dict() method correctly serializes the symmetry object's name
+                doc_dict['symmetry']['crystal_system'] = str(doc_dict['symmetry']['crystal_system'])
             results_serializable.append(doc_dict)
 
         print(f"Found and processed {len(results_serializable)} materials")
