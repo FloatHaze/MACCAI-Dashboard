@@ -94,7 +94,7 @@ The frontend will be accessible at `http://localhost:8000`. (You can modify code
 
 Open your web browser and navigate to:
 
-**[http://localhost:8000](https://www.google.com/search?q=http://localhost:8000)**
+**[http://localhost:8000](http://localhost:8000)**
 
 You should now see the fully functional MACCAI Dashboard\!
 
