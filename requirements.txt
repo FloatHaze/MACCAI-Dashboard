@@ -1,5 +1,14 @@
-flask
-mp-api
-python-dotenv
-flask-cors
+# Flask and web server components
+Flask
+Flask-Cors
+
+# Core scientific libraries with compatible versions
+numpy<2
 pydantic<2
+pymatgen==2024.2.20
+ase==3.22.1
+phonopy
+
+# Materials Project API and data handling
+mp-api
+pandas

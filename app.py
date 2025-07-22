@@ -38,6 +38,16 @@ def get_materials():
             criteria["is_stable"] = is_stable_filter
 
         include_elements = filters.get("includeElements", [])
+
+        selected_country = filters.get("country")
+        if selected_country and selected_country != "any" and not supply_risk_df.empty:
+            country_data = supply_risk_df[supply_risk_df['country'] == selected_country]
+            if not country_data.empty:
+                country_elements = country_data.iloc[0]['main_elements']
+                for el in country_elements:
+                    if el and el not in include_elements:
+                        include_elements.append(el)
+
         if include_elements:
             criteria["elements"] = include_elements
 
@@ -50,9 +60,8 @@ def get_materials():
         with MPRester(MP_API_KEY) as mpr:
             docs = mpr.materials.summary.search(**criteria, fields=fields)
 
-        results_pydantic = [doc.model_dump() for doc in docs]
+        results_pydantic = [doc.dict() for doc in docs]
 
-        # --- LOGIC FIX: Filter locally for country ---
         selected_country = filters.get("country")
         final_results = []
 
@@ -62,7 +71,6 @@ def get_materials():
                 country_elements = set(country_data.iloc[0]['main_elements'])
                 for material in results_pydantic:
                     material_elements = set(str(el) for el in material.get('elements', []))
-                    # FIX: Check for intersection (at least one common element) instead of subset
                     if not country_elements.isdisjoint(material_elements):
                         final_results.append(material)
             else:
@@ -70,13 +78,18 @@ def get_materials():
         else:
             final_results = results_pydantic
 
-        # --- JSON Serialization ---
         results_serializable = []
         for doc_dict in final_results:
             if 'elements' in doc_dict and doc_dict['elements'] is not None:
                 doc_dict['elements'] = [str(el) for el in doc_dict['elements']]
+
+            # --- FIX: Check type before trying to access .name attribute ---
             if 'symmetry' in doc_dict and doc_dict['symmetry'] is not None and 'crystal_system' in doc_dict['symmetry']:
-                doc_dict['symmetry']['crystal_system'] = doc_dict['symmetry']['crystal_system'].name
+                crystal_system_value = doc_dict['symmetry']['crystal_system']
+                # If the value is not already a string, then convert it from an Enum object
+                if not isinstance(crystal_system_value, str):
+                    doc_dict['symmetry']['crystal_system'] = crystal_system_value.name
+
             results_serializable.append(doc_dict)
 
         print(f"Found and processed {len(results_serializable)} materials")
