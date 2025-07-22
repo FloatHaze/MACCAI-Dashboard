@@ -1,0 +1,53 @@
+/* Periodic Table Styles */
+#periodic-table-container {
+    margin-bottom: 20px;
+}
+
+.periodic-table {
+    display: grid;
+    grid-template-columns: repeat(18, 1fr);
+    gap: 3px;
+    font-family: sans-serif;
+    font-size: 10px;
+}
+
+.element-cell {
+    width: 100%;
+    padding-bottom: 100%; /* Creates a square aspect ratio */
+    position: relative;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.element-cell:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.element-cell.selected {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #1e3a8a;
+}
+
+.element-cell .content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.element-cell .symbol {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.element-cell .number {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.8em;
+}

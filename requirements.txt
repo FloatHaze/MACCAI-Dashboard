@@ -1,0 +1,5 @@
+flask
+mp-api
+python-dotenv
+flask-cors
+pydantic<2
